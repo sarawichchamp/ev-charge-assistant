@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">EV Charge Assistant</string>
+    <string name="automation_channel_name">EV Charge Automation</string>
+    <string name="automation_channel_description">Charging workflow automation status</string>
+</resources>
