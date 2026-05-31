@@ -6,9 +6,12 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -22,16 +25,31 @@ import android.widget.Toast
 class TrainingOverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
+    private val handler = Handler(Looper.getMainLooper())
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1002, buildNotification())
-        showOverlay(intent?.getStringExtra("mappingKey").orEmpty())
+        val mappingKey = intent?.getStringExtra("mappingKey").orEmpty()
+        launchTrainingTarget(mappingKey)
+        handler.postDelayed({
+            try {
+                showOverlay(mappingKey)
+            } catch (error: Exception) {
+                Toast.makeText(
+                    this,
+                    "Training overlay failed: ${error.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+                stopSelf()
+            }
+        }, 1800)
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         overlayView?.let { view -> windowManager?.removeView(view) }
         overlayView = null
         super.onDestroy()
@@ -132,5 +150,39 @@ class TrainingOverlayService : Service() {
             )
         )
         Toast.makeText(this, "Saved $mappingKey at ($rawX, $rawY)", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun launchTrainingTarget(mappingKey: String) {
+        when {
+            mappingKey.startsWith("deepal_") -> launchByCandidates(
+                listOf("com.deepal.app", "com.changan.deepal", "com.deepal"),
+                "deepal"
+            )
+            mappingKey.startsWith("fuelio_") -> launchByCandidates(
+                listOf("com.kajda.fuelio"),
+                "fuelio"
+            )
+        }
+    }
+
+    private fun launchByCandidates(packages: List<String>, fallbackLabel: String) {
+        val pm = packageManager
+        for (candidate in packages) {
+            val launchIntent = pm.getLaunchIntentForPackage(candidate)
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(launchIntent)
+                return
+            }
+        }
+
+        val fallback = pm.getInstalledApplications(PackageManager.GET_META_DATA).firstOrNull {
+            pm.getApplicationLabel(it).toString().contains(fallbackLabel, ignoreCase = true)
+        }
+        val launchIntent = fallback?.packageName?.let(pm::getLaunchIntentForPackage)
+        launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (launchIntent != null) {
+            startActivity(launchIntent)
+        }
     }
 }

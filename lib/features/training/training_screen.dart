@@ -98,12 +98,6 @@ class _MappingTile extends StatelessWidget {
     }
 
     await context.read<AutomationService>().openTrainingOverlay(mappingKey);
-    if (!context.mounted) {
-      return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Preparing capture for $label...')),
-    );
   }
 
   @override
