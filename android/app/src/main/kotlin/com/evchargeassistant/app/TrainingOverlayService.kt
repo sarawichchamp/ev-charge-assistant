@@ -13,7 +13,9 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 
@@ -56,17 +58,38 @@ class TrainingOverlayService : Service() {
     private fun showOverlay(mappingKey: String) {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val overlay = FrameLayout(this).apply {
-            setBackgroundColor(0x3300BCD4)
+            setBackgroundColor(0x2200BCD4)
+        }
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 64, 32, 32)
+            setBackgroundColor(0xDD111111.toInt())
         }
         val prompt = TextView(this).apply {
             text = "Tap target for: $mappingKey"
             textSize = 18f
-            setPadding(32, 64, 32, 32)
+            setTextColor(0xFFFFFFFF.toInt())
         }
-        overlay.addView(prompt)
+        val hint = TextView(this).apply {
+            text = "Wait for the correct screen, then tap the exact target position once."
+            textSize = 14f
+            setTextColor(0xFFE0E0E0.toInt())
+            setPadding(0, 16, 0, 16)
+        }
+        val cancelButton = Button(this).apply {
+            text = "Cancel"
+            setOnClickListener { stopSelf() }
+        }
+        panel.addView(prompt)
+        panel.addView(hint)
+        panel.addView(cancelButton)
+        overlay.addView(panel)
 
         overlay.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
+                if (event.rawY < 240) {
+                    return@setOnTouchListener false
+                }
                 saveMapping(mappingKey, event.rawX, event.rawY)
                 stopSelf()
                 true
@@ -83,7 +106,8 @@ class TrainingOverlayService : Service() {
             } else {
                 WindowManager.LayoutParams.TYPE_PHONE
             },
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START

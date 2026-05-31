@@ -41,6 +41,10 @@ class TrainingScreen extends StatelessWidget {
           const Text(
             'When text recognition fails, switch to fallback mappings and teach each important screen coordinate.',
           ),
+          const SizedBox(height: 8),
+          const Text(
+            'Use the target icon to open the related app first, then tap the exact UI position when the overlay appears.',
+          ),
           const SizedBox(height: 16),
           ...AutomationRepository.requiredKeys.map((entry) {
             final point = repository.pointByKey(entry.$1);
@@ -67,6 +71,41 @@ class _MappingTile extends StatelessWidget {
   final String label;
   final AutomationPoint? point;
 
+  Future<void> _startCapture(BuildContext context) async {
+    final shouldStart = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(label),
+            content: const Text(
+              'The app will open the related target app. Move to the correct screen if needed, then tap the exact location once the overlay appears.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Start Capture'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldStart || !context.mounted) {
+      return;
+    }
+
+    await context.read<AutomationService>().openTrainingOverlay(mappingKey);
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Preparing capture for $label...')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -80,8 +119,8 @@ class _MappingTile extends StatelessWidget {
           spacing: 8,
           children: [
             IconButton(
-              tooltip: 'Visual overlay capture',
-              onPressed: () => context.read<AutomationService>().openTrainingOverlay(mappingKey),
+              tooltip: 'Open target app and capture',
+              onPressed: () => _startCapture(context),
               icon: const Icon(Icons.filter_center_focus),
             ),
             IconButton(

@@ -8,6 +8,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.core.content.ContextCompat
@@ -85,10 +87,13 @@ class AutomationBridge(private val context: Context) {
             ensurePermissions()
             return
         }
-        val intent = Intent(context, TrainingOverlayService::class.java).apply {
-            putExtra("mappingKey", mappingKey)
-        }
-        ContextCompat.startForegroundService(context, intent)
+        launchTrainingTarget(mappingKey)
+        Handler(Looper.getMainLooper()).postDelayed({
+            val intent = Intent(context, TrainingOverlayService::class.java).apply {
+                putExtra("mappingKey", mappingKey)
+            }
+            ContextCompat.startForegroundService(context, intent)
+        }, 1800)
     }
 
     fun saveMappingPoint(mappingKey: String, label: String, x: Double, y: Double) {
@@ -139,6 +144,13 @@ class AutomationBridge(private val context: Context) {
         launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (launchIntent != null) {
             context.startActivity(launchIntent)
+        }
+    }
+
+    private fun launchTrainingTarget(mappingKey: String) {
+        when {
+            mappingKey.startsWith("deepal_") -> launchDeepal()
+            mappingKey.startsWith("fuelio_") -> launchFuelio()
         }
     }
 }
