@@ -43,7 +43,7 @@ class TrainingScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Use the target icon to open the related app first, then tap the exact UI position when the overlay appears.',
+            'Use the target icon to start a floating capture bubble. Then open the related app yourself and tap the bubble to capture the exact position.',
           ),
           const SizedBox(height: 16),
           ...AutomationRepository.requiredKeys.map((entry) {
@@ -77,7 +77,7 @@ class _MappingTile extends StatelessWidget {
           builder: (context) => AlertDialog(
             title: Text(label),
             content: const Text(
-              'The app will open the related target app. Move to the correct screen if needed, then tap the exact location once the overlay appears.',
+              'A floating capture bubble will appear. Open the target app and go to the correct screen, then tap the bubble and tap the exact target position once.',
             ),
             actions: [
               TextButton(
@@ -86,7 +86,7 @@ class _MappingTile extends StatelessWidget {
               ),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Start Capture'),
+                child: const Text('Start Bubble'),
               ),
             ],
           ),

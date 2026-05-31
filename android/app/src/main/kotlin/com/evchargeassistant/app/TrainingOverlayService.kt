@@ -6,7 +6,6 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -18,6 +17,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -25,6 +25,7 @@ import android.widget.Toast
 class TrainingOverlayService : Service() {
     private var windowManager: WindowManager? = null
     private var overlayView: View? = null
+    private var bubbleView: View? = null
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -32,26 +33,16 @@ class TrainingOverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(1002, buildNotification())
         val mappingKey = intent?.getStringExtra("mappingKey").orEmpty()
-        launchTrainingTarget(mappingKey)
-        handler.postDelayed({
-            try {
-                showOverlay(mappingKey)
-            } catch (error: Exception) {
-                Toast.makeText(
-                    this,
-                    "Training overlay failed: ${error.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-                stopSelf()
-            }
-        }, 1800)
+        showBubble(mappingKey)
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         overlayView?.let { view -> windowManager?.removeView(view) }
+        bubbleView?.let { view -> windowManager?.removeView(view) }
         overlayView = null
+        bubbleView = null
         super.onDestroy()
     }
 
@@ -71,6 +62,49 @@ class TrainingOverlayService : Service() {
             .setContentText("Tap the correct position to save a mapping.")
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .build()
+    }
+
+    private fun showBubble(mappingKey: String) {
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        bubbleView?.let { existing ->
+            runCatching { windowManager?.removeView(existing) }
+        }
+
+        val bubble = ImageButton(this).apply {
+            setImageResource(android.R.drawable.ic_menu_mylocation)
+            setBackgroundColor(0xDD00BCD4.toInt())
+            contentDescription = "Capture target position"
+            setOnClickListener {
+                runCatching { windowManager?.removeView(this) }
+                bubbleView = null
+                showOverlay(mappingKey)
+            }
+        }
+
+        val params = WindowManager.LayoutParams(
+            160,
+            160,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.END
+            x = 24
+            y = 260
+        }
+
+        bubbleView = bubble
+        windowManager?.addView(bubble, params)
+        Toast.makeText(
+            this,
+            "Bubble ready. Open the target app, then tap the bubble.",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun showOverlay(mappingKey: String) {
@@ -96,7 +130,9 @@ class TrainingOverlayService : Service() {
         }
         val cancelButton = Button(this).apply {
             text = "Cancel"
-            setOnClickListener { stopSelf() }
+            setOnClickListener {
+                stopSelf()
+            }
         }
         panel.addView(prompt)
         panel.addView(hint)
@@ -150,39 +186,5 @@ class TrainingOverlayService : Service() {
             )
         )
         Toast.makeText(this, "Saved $mappingKey at ($rawX, $rawY)", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun launchTrainingTarget(mappingKey: String) {
-        when {
-            mappingKey.startsWith("deepal_") -> launchByCandidates(
-                listOf("com.deepal.app", "com.changan.deepal", "com.deepal"),
-                "deepal"
-            )
-            mappingKey.startsWith("fuelio_") -> launchByCandidates(
-                listOf("com.kajda.fuelio"),
-                "fuelio"
-            )
-        }
-    }
-
-    private fun launchByCandidates(packages: List<String>, fallbackLabel: String) {
-        val pm = packageManager
-        for (candidate in packages) {
-            val launchIntent = pm.getLaunchIntentForPackage(candidate)
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(launchIntent)
-                return
-            }
-        }
-
-        val fallback = pm.getInstalledApplications(PackageManager.GET_META_DATA).firstOrNull {
-            pm.getApplicationLabel(it).toString().contains(fallbackLabel, ignoreCase = true)
-        }
-        val launchIntent = fallback?.packageName?.let(pm::getLaunchIntentForPackage)
-        launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (launchIntent != null) {
-            startActivity(launchIntent)
-        }
     }
 }
