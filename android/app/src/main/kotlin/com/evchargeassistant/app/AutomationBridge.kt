@@ -88,7 +88,7 @@ class AutomationBridge(private val context: Context) {
         val intent = Intent(context, TrainingOverlayService::class.java).apply {
             putExtra("mappingKey", mappingKey)
         }
-        ContextCompat.startForegroundService(context, intent)
+        context.startService(intent)
     }
 
     fun saveMappingPoint(mappingKey: String, label: String, x: Double, y: Double) {

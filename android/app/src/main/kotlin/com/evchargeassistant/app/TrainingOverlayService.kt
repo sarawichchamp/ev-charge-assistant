@@ -31,9 +31,17 @@ class TrainingOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(1002, buildNotification())
         val mappingKey = intent?.getStringExtra("mappingKey").orEmpty()
-        showBubble(mappingKey)
+        try {
+            showBubble(mappingKey)
+        } catch (error: Exception) {
+            Toast.makeText(
+                this,
+                "Could not start training bubble: ${error.message}",
+                Toast.LENGTH_LONG
+            ).show()
+            stopSelf()
+        }
         return START_NOT_STICKY
     }
 
@@ -44,24 +52,6 @@ class TrainingOverlayService : Service() {
         overlayView = null
         bubbleView = null
         super.onDestroy()
-    }
-
-    private fun buildNotification(): Notification {
-        val channelId = "ev_charge_training"
-        val manager = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "EV Charge Training",
-                NotificationManager.IMPORTANCE_LOW
-            )
-            manager.createNotificationChannel(channel)
-        }
-        return Notification.Builder(this, channelId)
-            .setContentTitle("Training Mode")
-            .setContentText("Tap the correct position to save a mapping.")
-            .setSmallIcon(android.R.drawable.ic_menu_edit)
-            .build()
     }
 
     private fun showBubble(mappingKey: String) {
@@ -168,7 +158,16 @@ class TrainingOverlayService : Service() {
         }
 
         overlayView = overlay
-        windowManager?.addView(overlay, params)
+        try {
+            windowManager?.addView(overlay, params)
+        } catch (error: Exception) {
+            Toast.makeText(
+                this,
+                "Could not show capture overlay: ${error.message}",
+                Toast.LENGTH_LONG
+            ).show()
+            stopSelf()
+        }
     }
 
     private fun saveMapping(mappingKey: String, rawX: Float, rawY: Float) {
